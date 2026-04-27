@@ -60,10 +60,13 @@ Opções (install/doctor):
   --only <skills|rules|all>                           O que instalar (padrão: all)
   --dry-run                                          Não escreve nada, só imprime ações
   --force                                            Sobrescreve arquivos existentes
+  --gitignore <true|false>                           Cria/atualiza .gitignore no diretório pai (padrão: true)
+  --no-gitignore                                     Desabilita a escrita do .gitignore
 
 Exemplos:
   wake-skills install
   wake-skills install --target cursor
+  wake-skills install --no-gitignore
   wake-skills install --dest .. --target custom --skills-dir .agents/skills --rules-dir .cursor/rules
 `.trim()
 
@@ -99,6 +102,56 @@ async function pathExists(p) {
 async function ensureDir(dir, dryRun) {
   if (dryRun) return
   await fs.mkdir(dir, { recursive: true })
+}
+
+function parseBool(v, defaultValue = false) {
+  if (v === undefined) return defaultValue
+  if (v === true) return true
+  const s = String(v).trim().toLowerCase()
+  if (['1', 'true', 'yes', 'y', 'on'].includes(s)) return true
+  if (['0', 'false', 'no', 'n', 'off'].includes(s)) return false
+  return defaultValue
+}
+
+function normalizeGitignoreLine(line) {
+  const trimmed = String(line).trim()
+  if (!trimmed) return ''
+  if (trimmed.startsWith('#')) return ''
+  return trimmed.replace(/\\/g, '/')
+}
+
+async function upsertGitignore(baseDir, entries, { dryRun }) {
+  if (!entries || entries.size === 0) return
+
+  const gitignorePath = path.join(baseDir, '.gitignore')
+  const desired = new Set()
+  for (const e of entries) {
+    // Entries are repo-relative directory names (or relative paths).
+    const p = String(e).replace(/\\/g, '/').replace(/\/+$/, '')
+    if (p) desired.add(p)
+  }
+
+  let existingText = ''
+  let existingLines = []
+  if (await pathExists(gitignorePath)) {
+    existingText = await fs.readFile(gitignorePath, 'utf8')
+    existingLines = existingText.split(/\r?\n/)
+  }
+
+  const existingNormalized = new Set(existingLines.map(normalizeGitignoreLine).filter(Boolean))
+  const toAdd = [...desired].filter((l) => !existingNormalized.has(l))
+  if (toAdd.length === 0) return
+
+  const block = [
+    '',
+    '# wake-skills (generated folders)',
+    ...toAdd,
+    '',
+  ].join('\n')
+
+  if (dryRun) return
+  await ensureDir(baseDir, false)
+  await fs.writeFile(gitignorePath, existingText ? existingText + block : block.trimStart(), 'utf8')
 }
 
 async function copyFile(src, dst, { dryRun, force }) {
@@ -166,12 +219,15 @@ function resolveInstallConfig(args) {
   const only = String(args['--only'] || 'all')
   const dryRun = Boolean(args['--dry-run'])
   const force = Boolean(args['--force'])
+  const gitignore = Boolean(args['--no-gitignore'])
+    ? false
+    : parseBool(args['--gitignore'], true)
 
   if (!['skills', 'rules', 'all'].includes(only)) {
     throw new Error(`Valor inválido para --only: ${only}`)
   }
 
-  return { target, dest, skillsDir, rulesDir, only, dryRun, force }
+  return { target, dest, skillsDir, rulesDir, only, dryRun, force, gitignore }
 }
 
 async function cmdDoctor(args) {
@@ -180,6 +236,7 @@ async function cmdDoctor(args) {
   console.log(`dest:   ${cfg.dest}`)
   console.log(`skills: ${cfg.skillsDir}`)
   console.log(`rules:  ${cfg.rulesDir}`)
+  console.log(`gitignore: ${cfg.gitignore}`)
   console.log('')
 
   console.log(`skillsDir exists: ${await pathExists(cfg.skillsDir)}`)
@@ -198,7 +255,16 @@ async function cmdInstall(args) {
   console.log(`- only   -> ${cfg.only}`)
   console.log(`- dryRun -> ${cfg.dryRun}`)
   console.log(`- force  -> ${cfg.force}`)
+  console.log(`- gitignore -> ${cfg.gitignore}`)
   console.log('')
+
+  const gitignoreEntries = new Set()
+  function addGitignoreEntry(absDirToIgnore) {
+    const rel = path.relative(cfg.dest, absDirToIgnore).replace(/\\/g, '/')
+    // Only write safe relative entries (avoid absolute paths in .gitignore).
+    if (!rel || rel.startsWith('..')) return
+    gitignoreEntries.add(rel)
+  }
 
   if (cfg.only === 'skills' || cfg.only === 'all') {
     for (const skillFolder of skills) {
@@ -207,6 +273,7 @@ async function cmdInstall(args) {
       console.log(`skill: ${skillFolder}`)
       await copyDir(src, dst, { dryRun: cfg.dryRun, force: cfg.force })
     }
+    if (cfg.gitignore) addGitignoreEntry(path.dirname(cfg.skillsDir))
   }
 
   if (cfg.only === 'rules' || cfg.only === 'all') {
@@ -217,6 +284,11 @@ async function cmdInstall(args) {
       const res = await copyFile(src, dst, { dryRun: cfg.dryRun, force: cfg.force })
       console.log(`rule: rules/${ruleFile} (${res.action}${res.reason ? `: ${res.reason}` : ''})`)
     }
+    if (cfg.gitignore) addGitignoreEntry(path.dirname(cfg.rulesDir))
+  }
+
+  if (cfg.gitignore) {
+    await upsertGitignore(cfg.dest, gitignoreEntries, { dryRun: cfg.dryRun })
   }
 }
 

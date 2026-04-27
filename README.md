@@ -25,6 +25,21 @@ Isso copia:
 npx wake-skills install --target cursor
 ```
 
+### `.gitignore` (padrão: ligado) para ignorar pastas geradas
+
+Por padrão, o `install` cria/atualiza um `.gitignore` para você não versionar as skills/rules copiadas para o seu projeto.
+O comando vai criar (ou complementar) um `.gitignore` no diretório onde você rodou o comando (o `--dest`, por padrão a pasta atual), com entradas para ignorar a pasta instalada (ex.: `.agents/` ou `.cursor/`).
+
+```bash
+npx wake-skills install
+```
+
+Se quiser desabilitar:
+
+```bash
+npx wake-skills install --no-gitignore
+```
+
 ### Customizar destino e paths
 
 ```bash
