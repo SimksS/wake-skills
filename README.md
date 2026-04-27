@@ -4,6 +4,40 @@ Collection of Agent Skills and Rules for Wake Storefront SSR projects.
 
 This repository is meant to be consumed by installers/CLIs via NPX and by IDEs or agents that load skill/rule directories. Each skill directory contains a `SKILL.md` with actionable instructions and, when needed, a `reference.md` with supporting details.
 
+## Instalação via NPX (CLI)
+
+Este pacote publica um comando `wake-skills` para instalar/copiar as skills e rules para um projeto.
+
+### Instalar no padrão `.agents` (default)
+
+```bash
+npx wake-skills install
+```
+
+Isso copia:
+
+- `wake-*/` -> `.agents/skills/wake-*/`
+- `rules/*.md` -> `.agents/rules/*.md`
+
+### Instalar para Cursor (preset)
+
+```bash
+npx wake-skills install --target cursor
+```
+
+### Customizar destino e paths
+
+```bash
+npx wake-skills install --target custom --dest . --skills-dir .agents/skills --rules-dir .cursor/rules
+```
+
+### Verificar configuração (sem escrever)
+
+```bash
+npx wake-skills doctor --target cursor
+npx wake-skills install --dry-run
+```
+
 ## Catalog
 
 - `wake-queries`: create and wire GraphQL queries in `Queries/`.

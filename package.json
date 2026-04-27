@@ -4,10 +4,25 @@
   "description": "Agent skills and rules for Wake Storefront SSR projects.",
   "license": "MIT",
   "private": false,
+  "bin": {
+    "wake-skills": "bin/wake-skills.cjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "files": [
     "README.md",
+    "bin/",
     "rules/",
-    "wake-*/"
+    "wake-blocks/",
+    "wake-components/",
+    "wake-data-layer/",
+    "wake-mutations/",
+    "wake-performance/",
+    "wake-queries/",
+    "wake-scriban/",
+    "wake-snippets/",
+    "wake-store-builtins/"
   ],
   "keywords": [
     "wake",
@@ -17,6 +32,9 @@
     "agent",
     "skills",
     "rules"
-  ]
+  ],
+  "scripts": {
+    "pack:check": "npm pack --silent"
+  }
 }
 
