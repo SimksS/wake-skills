@@ -83,7 +83,7 @@ Avoid duplicating entire HTML blocks for mobile and desktop, because it makes th
 
 When editing templates, also apply:
 
-- `rules/wake-scriban.md` for syntax and `underscore_case`.
+- `rules/wake-scriban.mdc` for syntax and `underscore_case`.
 - `wake-store-builtins` when you need static URLs like `store.urls.static_img`.
 
 ## “Hotsite-style” search

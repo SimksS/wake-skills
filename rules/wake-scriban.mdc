@@ -1,3 +1,9 @@
+---
+description: Apply Scriban rules when editing Wake Storefront SSR HTML templates.
+globs:
+  - "**/*.html"
+---
+
 # Rule: Wake Scriban in HTML Templates
 
 When working on Wake Storefront SSR HTML templates, remember the templating language is Scriban.
@@ -30,7 +36,7 @@ In a Wake Scriban template, access:
 
 1. Confirm the file is rendered by Wake Storefront SSR.
 2. Identify which objects are injected into the template (`data`, `block_data`, component params, settings, etc.).
-3. For Wake Commerce GraphQL data, also apply `wake-graphql-mcp.md`.
+3. For Wake Commerce GraphQL data, also apply `rules/wake-graphql-mcp.mdc`.
 4. Write Scriban expressions using `underscore_case` for injected objects.
 
 ## Avoid

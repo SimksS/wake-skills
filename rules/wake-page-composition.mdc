@@ -1,0 +1,109 @@
+---
+description: Wake page, component, and snippet composition contracts for HTML + Scriban.
+globs: "{Pages/**/*.html,Components/**/*.html,Snippets/**/*.html}"
+alwaysApply: false
+---
+
+# Wake Page Composition
+
+Wake storefront pages follow a strict composition order so that data layer, SEO, scripts and SDK are available at the right moment. Align every new page and major component with the reference pages [Pages/home.html](Pages/home.html) and [Pages/product.html](Pages/product.html).
+
+## Canonical page skeleton
+
+```html
+<!DOCTYPE html>
+<html lang="pt-BR">
+    <head>
+        {{ page_scripts position: "HEADER_START" scripts: common.scripts }}
+        {{ head store: store }}
+        {{ data_layer_config }}
+        {{ asset type: "css" paths: ["navbar", "footer", "output_base"] }}
+        {{ page_scripts position: "HEADER_END" scripts: common.scripts }}
+        {{ meta_tags seo: data.<entity>.seo }}
+        <link rel="canonical" href="{{ store.urls.current }}" />
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <input hidden id="data-layer-page-type" value="<PAGE_TYPE>"/>
+    </head>
+    <body class="bg-mainBg">
+        {{ page_scripts position: "BODY_START" scripts: common.scripts }}
+        <header>
+            {{ links }}
+            {{ header }}
+            {{ navbar store: store menu_groups: common.menu_groups position: "Topo Header" }}
+        </header>
+        {{ side_cart }}
+        {{ wake_overlay }}
+
+        {{# page body #}}
+
+        {{ page_scripts position: "FOOTER_START" scripts: common.scripts }}
+        {{ footer is_preview: is_preview store: store }}
+        {{ sdk_client }}
+        {{ page_scripts position: "FOOTER_END" scripts: common.scripts }}
+        {{ wake_scripts scripts: ["wake_utils"] }}
+        {{ asset type: "js" paths: [...] options: "async" }}
+        {{ page_scripts position: "BODY_END" scripts: common.scripts }}
+    </body>
+</html>
+```
+
+Required ordering invariants:
+
+- `page_scripts` appears in all four slots: `HEADER_START`, `HEADER_END`, `BODY_START`, `FOOTER_START`, `FOOTER_END`, `BODY_END`.
+- `head` must be before `meta_tags` and `asset` CSS.
+- `sdk_client` must exist before any JS bundle that uses `client.*`.
+- `data_layer_config` goes in `<head>`; page-specific `data_layer_*` goes near footer.
+- `wake_overlay` and `side_cart` stay in `<body>` top.
+
+## Component invocation
+
+Components registered in [Configs/components.json](Configs/components.json) are called by name with named arguments. Always respect declared required params.
+
+```html
+{{ meta_tags seo: data.product.seo }}
+{{ breadcrumb breadcrumbs: product.breadcrumbs }}
+{{ spot_carousel products: data.recs class: "recs" title: "You may like" dots: true }}
+```
+
+Do NOT emit Scriban `include '...'` for Wake components; Wake resolves them through the registry.
+
+## Snippet authoring contract
+
+Every snippet in `Snippets/` must begin with a doc header that lists the linked query and the JS call site, matching the pattern used in [Snippets/cursor_pagination.html](Snippets/cursor_pagination.html) and [Snippets/product_view_snippet.html](Snippets/product_view_snippet.html).
+
+```html
+{{ ##
+    Description: <what this snippet renders>
+    Params:
+        - Uses <Queries/...graphql or Queries/SnippetQueries/...graphql>
+    Usage:
+        await client.snippet.render("<name>.html", "<query>.graphql", variables);
+## }}
+```
+
+Snippet rules:
+
+- Keep snippets idempotent and safe to inject repeatedly into the DOM.
+- Read data via `data.*` exactly as returned by the bound query.
+- Guard optional chains with `?.` and fallbacks with `??`.
+- Do not embed business logic that belongs in GraphQL selection or in JS.
+
+## HTML quality constraints
+
+- No interactive elements inside `<head>` (keep `input[hidden]` out — prefer `<meta>` or `<script type="application/json">`).
+- No duplicate `id` values in the final rendered page (e.g. do not reuse `checkout_total_snippet` twice).
+- Preserve semantics: buttons for actions, links for navigation, alt text on informative images.
+- Keep `<input type="hidden">` helpers with unique, page-scoped IDs (`product-id`, `product-variant-id`, `data-layer-page-type`).
+
+## Debug and cleanliness
+
+- No `{{ debug.log ... }}` in committed templates.
+- No commented-out component calls (`{{# spot_carousel ... }}`) left in pages; remove or fix.
+- No stale TODOs without a concrete next step (e.g. the known `AJUSTAR O ID DO HOTSITE` must be resolved, not replicated).
+- Keep `<!DOCTYPE html>` and `lang` attribute on page templates.
+
+## Accessibility essentials
+
+- Meaningful headings (`<h1>` per page, hierarchical `<h2>..<h6>`).
+- `alt` on `<img>` driven by product or banner data; empty alt only for decorative images.
+- Labeled form controls (`<label for>` or wrapping `<label>`).

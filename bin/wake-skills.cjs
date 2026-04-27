@@ -71,21 +71,20 @@ Exemplos:
   process.exit(exitCode)
 }
 
+const PRESETS = {
+  agents:      { skillsDir: '.agents/skills',  rulesDir: '.agents/rules'  },
+  cursor:      { skillsDir: '.cursor/skills',  rulesDir: '.cursor/rules'  },
+  kline:       { skillsDir: '.kline/skills',   rulesDir: '.kline/rules'   },
+  'claude-code': { skillsDir: '.claude/skills', rulesDir: '.claude/rules' },
+  custom:      { skillsDir: '.agents/skills',  rulesDir: '.agents/rules'  }
+}
+
 function presetForTarget(target) {
-  switch (target) {
-    case 'agents':
-      return { skillsDir: '.agents/skills', rulesDir: '.agents/rules' }
-    case 'cursor':
-      return { skillsDir: '.cursor/skills', rulesDir: '.cursor/rules' }
-    case 'kline':
-      return { skillsDir: '.kline/skills', rulesDir: '.kline/rules' }
-    case 'claude-code':
-      return { skillsDir: '.claude/skills', rulesDir: '.claude/rules' }
-    case 'custom':
-      return { skillsDir: '.agents/skills', rulesDir: '.agents/rules' }
-    default:
-      throw new Error(`Target inválido: ${target}`)
+  const preset = PRESETS[target]
+  if (!preset) {
+    throw new Error(`Target inválido: ${target}`)
   }
+  return { ...preset }
 }
 
 async function pathExists(p) {
@@ -141,7 +140,7 @@ async function listRules() {
   if (!(await pathExists(rulesDir))) return []
   const entries = await fs.readdir(rulesDir, { withFileTypes: true })
   return entries
-    .filter((e) => e.isFile() && e.name.endsWith('.md'))
+    .filter((e) => e.isFile() && (e.name.endsWith('.mdc') || e.name.endsWith('.md')))
     .map((e) => e.name)
     .sort()
 }

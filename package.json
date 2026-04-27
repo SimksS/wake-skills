@@ -21,7 +21,11 @@
     "wake-queries/",
     "wake-scriban/",
     "wake-snippets/",
-    "wake-store-builtins/"
+    "wake-store-builtins/",
+    "wake-query-and-snippet-designer/",
+    "wake-scriban-graphql-implementer/",
+     "wake-template-auditor"
+   
   ],
   "keywords": [
     "wake",

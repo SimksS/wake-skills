@@ -1,0 +1,27 @@
+---
+description: Use Wake GraphQL MCP before assuming dynamic Wake Commerce data shapes.
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Rule: Use Wake GraphQL MCP Before Assuming Data
+
+When a task involves dynamic Wake Commerce data, do not invent field names, types, arguments, or response shapes.
+
+Before generating code that depends on Wake’s GraphQL API:
+
+1. Identify which template, Page, Snippet, Component, or Block will consume the data.
+2. List the required data in business terms.
+3. Use `wake-graphql-mcp` to confirm the real schema.
+4. Validate the proposed query when possible.
+5. Only then write the `.graphql`, the HTML/Scriban, or the consumer code.
+
+Expected tools:
+
+- `wake_graphql_search`: search for types/fields by text.
+- `wake_graphql_type`: inspect fields, arguments, and type signatures.
+- `wake_graphql_query`: execute a query and verify the returned JSON shape.
+- `wake_graphql_introspect`: get a high-level view of the schema.
+
+Use the real shape returned by the MCP as the source of truth to access `data`, define parameters, and handle nullability.

@@ -37,7 +37,7 @@ Do not create extra calls to fetch data that is already available in `store`.
 
 ## Relationship with Scriban
 
-This skill depends on the `rules/wake-scriban.md` rule.
+This skill depends on the `rules/wake-scriban.mdc` rule.
 
 Remember that objects injected by the Storefront use `underscore_case`. For example:
 

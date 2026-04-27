@@ -1,0 +1,88 @@
+---
+description: Wake Configs integrity rules for pages.json, components.json, and settings.json.
+globs: "Configs/**/*.json"
+alwaysApply: false
+---
+
+# Wake Config Integrity
+
+The `Configs/` folder is the source of truth for routing, component registry, and storefront settings. Any drift between config and filesystem breaks Wake builds. Reference files: [Configs/pages.json](Configs/pages.json), [Configs/components.json](Configs/components.json), [Configs/settings.json](Configs/settings.json).
+
+## Routing (`Configs/pages.json`)
+
+Every route entry must resolve to real files on disk.
+
+```json
+{
+    "type": "product",
+    "path": "product.html",
+    "query": "product.graphql",
+    "customs": [
+        {
+            "productIds": [100129],
+            "path": "custom/buy_box_product.html",
+            "query": "buy_box_product.graphql",
+            "priority": 11
+        }
+    ]
+}
+```
+
+Integrity rules:
+
+- `path` must exist under [Pages/](Pages).
+- `query` must exist under [Queries/](Queries).
+- `routes[].path` and `routes[].query` resolve the same way (checkout/account flows).
+- `customs[].urlMatch` / `customs[].productIds` must point to templates that exist.
+- `authLevel` values (for example `"New"`) must be paired with a valid `authFallback` route name.
+- `queryStrings` arrays must list actual query string names consumed by the page.
+
+When adding or removing a page:
+
+- Add/remove its entry in `pages.json` in the same change.
+- Add/remove the matching file in `Pages/` and `Queries/`.
+- Update any child routes that depend on it.
+
+## Component registry (`Configs/components.json`)
+
+Entries must match real component files and declare required params accurately.
+
+```json
+{
+    "name": "meta_tags",
+    "path": "meta_tags.html",
+    "params": [{ "name": "seo", "required": true }],
+    "availableInAllPages": true
+}
+```
+
+Rules:
+
+- `path` is relative to `Components/` and must exist.
+- `params[].required: true` means templates must fail if caller omits that arg — keep the flag honest.
+- `availableInAllPages: true` only for globally usable components; set `false` and scope via page for specialized ones.
+- Names follow `snake_case` (consistent with how they are called inside Scriban).
+- Never register a component name that is not actually invoked anywhere (dead registry entries rot fast).
+
+## Settings (`Configs/settings.json`)
+
+Keep this file safe and environment-aware.
+
+- Do not commit `storefrontAccessToken`, partner access tokens, or long-lived secrets. Treat `settings.access_token` as a platform-managed value and keep committed defaults as placeholders.
+- Preserve existing key structure expected by the storefront (`page_size.default`, layout, feature flags).
+- Keep keys in one consistent naming style per section; avoid mixing `camelCase` and `snake_case`.
+- When adding a flag, document its consumer (template or JS file) in the same PR.
+
+## Change discipline
+
+- For any cross-file change (route + template + query), update all three in the same commit.
+- Remove stale references when deleting a page/component/query.
+- Do not introduce `customs` with overlapping `urlMatch` patterns without explicit `priority`.
+
+## Checklist before committing Configs changes
+
+- [ ] Every `path` resolves on disk.
+- [ ] Every `query` resolves on disk.
+- [ ] Required params match what the template actually uses.
+- [ ] No secrets committed.
+- [ ] Naming style consistent with existing entries.

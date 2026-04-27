@@ -1,0 +1,110 @@
+---
+description: Enforce valid Scriban syntax in Wake templates and block Liquid-style drift.
+globs: "{Pages/**/*.html,Components/**/*.html,Snippets/**/*.html,Emails/**/*.html,Root/**/*.html}"
+alwaysApply: false
+---
+
+# Scriban Core Syntax (Wake)
+
+Wake templates are rendered by the Scriban engine, not Liquid. Generate code that strictly follows the Scriban language. Official reference: https://scriban.github.io/docs/language
+
+## Hard rules
+
+- Use `{{ ... }}` code blocks and `{{~ ... ~}}` for non-greedy whitespace trim.
+- Close every block with `end` (`if`, `for`, `case`, `capture`, `func`, `while`, `with`).
+- Access members with `.` (snake_case) and `?.` for optional chaining.
+- Use `??` for fallback and the ternary `cond ? a : b` (Scriban 3.0+).
+- Pipe with `|` into built-in modules: `array.*`, `string.*`, `math.*`, `date.*`, `object.*`, `regex.*`, `html.*`, `timespan.*`.
+- Comments: single-block `{{# comment #}}` or multi-line `{{ ## ... ## }}`.
+- Do not invent filters or tags. If unsure, prefer a simpler expression backed by the docs.
+
+## Scriban vs Liquid (anti-drift)
+
+Do NOT translate Liquid examples literally. Always convert to Scriban.
+
+```html
+{{# Liquid (WRONG in Wake) #}}
+{% if product.available %}{{ product.title | upcase }}{% endif %}
+{% assign x = 10 %}
+{% unless x %}...{% endunless %}
+{{ products | where: "type", "shirt" | size }}
+{% capture y %}hello{% endcapture %}
+
+{{# Scriban (CORRECT in Wake) #}}
+{{ if product.available }}{{ product.product_name | string.upcase }}{{ end }}
+{{ x = 10 }}
+{{ if !x }}...{{ end }}
+{{ products | array.filter @(do; ret $0.type == "shirt"; end) | array.size }}
+{{ capture y }}hello{{ end }}
+```
+
+Common Liquid-only forms that MUST NOT appear:
+
+- `{% ... %}` tags, `{% assign %}`, `{% unless %}`, `{% endif %}`, `{% endfor %}`, `{% endcapture %}`.
+- Filters with colon-args: `| where: "x", 1`, `| replace: "a", "b"` (use Scriban space/positional args).
+- `forloop.*` (use `for.index`, `for.first`, `for.last`, `for.even`, `for.odd`, `for.rindex`).
+- `empty` object comparison Liquid-style (use `value.empty?` or `value == empty`).
+- `include 'x.html' with y` (Wake invokes components by name, see below).
+
+## Control flow templates
+
+```html
+{{~ if product.available ~}}
+  <button>Buy</button>
+{{~ else if product.coming_soon ~}}
+  <span>Coming soon</span>
+{{~ else ~}}
+  <span>Sold out</span>
+{{~ end ~}}
+
+{{~ for item in items offset: 0 limit: 6 ~}}
+  <li data-index="{{ for.index }}">{{ item.name }}</li>
+{{~ end ~}}
+
+{{ case page_type
+  when "PRODUCT", "PDP"
+    "pdp"
+  when "HOME"
+    "home"
+  else
+    "default"
+end }}
+
+{{~ capture greeting ~}}
+  Hello {{ customer.first_name ?? "friend" }}
+{{~ end ~}}
+```
+
+## Safe shaping with built-ins
+
+```html
+{{~ first_order      = data.checkout.orders | array.first ~}}
+{{~ total            = data.checkout.total | math.format "c" "pt-BR" ~}}
+{{~ short_desc       = product.description | string.truncate 120 ~}}
+{{~ order_date       = date.parse first_order.date | date.to_string '%d/%m/%Y' culture: 'pt-BR' ~}}
+{{~ grouped          = product.promotions | group.by @(do; ret $0.disclosure_type; end) ~}}
+{{~ product_page_promos = grouped | group.get "Página Produto" ~}}
+```
+
+## Wake component invocation (NOT `include`)
+
+Wake resolves components registered in [Configs/components.json](Configs/components.json) by name, called like a function with named arguments. Do not emit `include` statements for Wake components.
+
+```html
+{{ head store: store }}
+{{ navbar store: store menu_groups: common.menu_groups position: "Topo Header" }}
+{{ asset type: "css" paths: ["navbar", "footer", "output_base"] }}
+{{ spot_carousel products: data.recs class: "recommendations" title: "You may like" }}
+```
+
+## Out-of-scope (do NOT author)
+
+- Template engine runtime wiring, loaders, or context setup (Wake platform handles internals).
+- Scriban `{% liquid %}` compatibility syntax (never used in Wake).
+- Speculative built-ins not present in the [Scriban builtins](https://scriban.github.io/docs/builtins) reference.
+
+## Forbidden leftovers
+
+- `{{ debug.log ... }}` (only for local debugging; never commit).
+- Dead `{{ ## TODO ## }}` without owner or ticket context.
+- Commented-out component calls left in production pages.

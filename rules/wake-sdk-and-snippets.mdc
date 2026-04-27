@@ -1,0 +1,125 @@
+---
+description: Contract for the Wake Storefront SDK client, snippet rendering, and cross-file coupling between JS, Snippets, and Queries.
+globs: "{Assets/JS/**/*.js,Snippets/**/*.html,Components/utils/sdk_client.html}"
+alwaysApply: false
+---
+
+# Wake SDK and Snippets
+
+The Storefront SDK is initialized by [Components/utils/sdk_client.html](Components/utils/sdk_client.html):
+
+```html
+<script src="https://static.fbits.net/storefront-sdk/latest/storefront-sdk-full.min.js?theme={{- store.theme -}}&v={{- store.wake_last_modified -}}"></script>
+<script>
+const clientConfig = {
+    storefrontAccessToken: '{{ settings.access_token }}',
+    storeUrl: '{{ store.urls.base }}'
+};
+const client = StorefrontClient.createClient(clientConfig);
+</script>
+```
+
+All browser-side logic must use this global `client` instance. Do not instantiate a second client or import a different SDK.
+
+## Three files, one contract
+
+A snippet render involves three artifacts that must stay in sync:
+
+1. JS call site in `Assets/JS/*.js` (or `Components/utils/`).
+2. Snippet template in `Snippets/*.html`.
+3. GraphQL query in `Queries/*.graphql` or `Queries/SnippetQueries/*.graphql`.
+
+```text
+Assets/JS/pagination.js        ->  Snippets/cursor_pagination.html
+                                   Queries/search_with_cursor.graphql
+Assets/JS/product.js           ->  Snippets/product_view_snippet.html
+                                   Queries/product.graphql
+Assets/JS/wicomm_checkout.js   ->  Snippets/wake_checkout_products_snippet.html
+                                   Queries/SnippetQueries/wake_checkout.graphql
+```
+
+When changing any one of the three, validate and update the other two.
+
+## Snippet header pattern
+
+Every file under `Snippets/` starts with a Scriban doc comment listing its query and call site. Match this format (see [Snippets/cursor_pagination.html](Snippets/cursor_pagination.html)):
+
+```html
+{{ ##
+    Description: Renders the product list with infinite scroll
+    Params:
+        - Uses search_with_cursor.graphql
+    Usage:
+        await client.snippet.render("cursor_pagination.html", ...);
+## }}
+```
+
+The header is non-negotiable: it is the single source of traceability between SDK call, snippet, and query.
+
+## Variables contract
+
+JS object keys must be identical to the GraphQL query variables. Type and name drift breaks the render silently.
+
+```js
+// Query expects: $after, $filters, $resultSize, $sortKey, $sortDirection, $url
+const obj = {
+    partnerAccessToken,
+    filters,
+    minimumPrice,
+    maximumPrice,
+    resultSize: pageSize,
+    sortKey,
+    sortDirection,
+    after: endCursor,
+    url,
+};
+await client.snippet.render("cursor_pagination.html", "hotsite_with_cursor.graphql", obj);
+```
+
+Required fields in most flows:
+
+- `partnerAccessToken` (always forward when available; read once per flow with `await client.cookie.get("sf_partner_access_token")`).
+- Pagination inputs: `after`, `before`, `resultSize`, `first`, `last`.
+- Entity inputs: `productId`, `url`, `searchQuery`, `customerAccessToken`.
+
+## DOM injection safety
+
+- Read the target element, not `document.body`.
+- Check existence before writing.
+- Prefer `innerHTML += html` only for append flows; use `innerHTML = html` for replace flows.
+- Re-bind event listeners on new DOM after injection (see the button rebind in [Assets/JS/pagination.js](Assets/JS/pagination.js)).
+
+```js
+const container = document.getElementById("infinity-scroll-content-div");
+if (!container) return;
+container.innerHTML += html;
+```
+
+## Cookies and tokens
+
+Canonical cookies used through the SDK:
+
+- `sf_partner_access_token` — partner flows.
+- `sf_customer_access_token` — logged customer flows.
+- `carrinho-id` — active checkout.
+
+Rules:
+
+- Read via `await client.cookie.get("...")`.
+- Do not hardcode other cookie names or rename these.
+- Never log cookie values to console.
+
+## Forbidden patterns
+
+- Calling `fetch("/graphql")` directly instead of `client.query`.
+- Instantiating a second `StorefrontClient` (breaks session continuity).
+- Using `client.snippet.render(snippet)` without a query argument when the snippet needs SSR data.
+- Mutating DOM before confirming the target exists.
+
+## Checklist before submitting a snippet change
+
+- [ ] Snippet header lists the query file and the JS usage.
+- [ ] JS object keys match query variables by name.
+- [ ] Snippet template reads the same `data.*` fields the query selects.
+- [ ] Target DOM element is validated before injection.
+- [ ] No second SDK client or direct fetch calls.

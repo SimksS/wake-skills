@@ -1,0 +1,106 @@
+---
+description: Wake Storefront GraphQL conventions for page queries, snippet queries, fragments, and pagination.
+globs: "Queries/**/*.graphql"
+alwaysApply: false
+---
+
+# Wake GraphQL Contracts
+
+Wake binds each page and snippet to a `.graphql` file resolved through [Configs/pages.json](Configs/pages.json) or a `client.snippet.render(...)` call. Keep queries typed, minimal, and consistent with the Wake Storefront GraphQL schema.
+
+## File layout
+
+- Page queries: `Queries/<page>.graphql` (for example [Queries/product.graphql](Queries/product.graphql), [Queries/home.graphql](Queries/home.graphql), [Queries/search.graphql](Queries/search.graphql)).
+- Snippet queries: `Queries/SnippetQueries/<name>.graphql` (for example `wake_checkout.graphql`, `wholesale.graphql`).
+- The `common.graphql` query ([Queries/common.graphql](Queries/common.graphql)) is merged into every page; do not duplicate its fields elsewhere.
+
+## Required variable contracts
+
+Use consistent variable names aligned with Wake SDK inputs. Typical signatures:
+
+```graphql
+query Common(
+    $url: String!
+    $scriptPageTypes: [ScriptPageType!]
+    $partnerAccessToken: String
+) { ... }
+
+query ProductPage(
+    $productId: Long!
+    $selections: [AttributeFilterInput]
+    $partnerAccessToken: String
+) { ... }
+
+query HotsiteCursor(
+    $url: String!
+    $after: String
+    $before: String
+    $first: Int
+    $last: Int
+    $filters: [ProductFilterInput]
+    $minimumPrice: Decimal
+    $maximumPrice: Decimal
+    $sortKey: ProductSortKeys
+    $sortDirection: SortDirection
+    $partnerAccessToken: String
+) { ... }
+```
+
+Variable rules:
+
+- Always include `$partnerAccessToken: String` on data-sensitive queries (product, checkout, account, cart, snippets that render for partners).
+- `$url: String!` on hotsite/common queries.
+- `$selections: [AttributeFilterInput]` on product queries that handle variant matrices.
+- Cursor inputs use `$after`, `$before`, `$first`, `$last` matching Relay conventions.
+
+## Product payload consistency
+
+Avoid divergent product selections between PLP, PDP, search, hotsite, and snippets. Use the `fragment SingleProductData on SingleProduct { ... }` pattern from [Queries/product.graphql](Queries/product.graphql) as the reference, and prefer fragments over copy-paste when multiple queries need the same shape.
+
+Minimum fields for any product spot/card:
+
+```graphql
+id
+productId
+productVariantId
+productName
+alias: aliasComplete
+available
+images(width: 275, height: 275) { url print }
+prices {
+    listPrice
+    price
+    discountPercentage
+    bestInstallment { name displayName discount fees number value }
+}
+```
+
+## Pagination strategy
+
+- Use offset pagination (`productsByOffset`) when the UI exposes numbered pages.
+- Use cursor pagination (`products { edges { node { ... } } pageInfo }`) for infinite scroll / "show more" flows as in [Queries/search_with_cursor.graphql](Queries/search_with_cursor.graphql).
+- Always select `pageInfo { endCursor hasNextPage hasPreviousPage startCursor }` when using cursors.
+- Keep `totalCount` for empty-state detection.
+
+## Snippet query coupling
+
+Snippet queries must return the exact shape the snippet template reads from `data.*`. Keep them narrow:
+
+- Only select fields consumed by the snippet.
+- Do not select `customizations`, `reviews`, `buyTogether` for lightweight refresh snippets.
+- Mirror variable names in the snippet call: arguments passed in JS become the variables of the query.
+
+## Safety
+
+- Do not add fields that do not exist in the Wake Storefront GraphQL schema.
+- Do not silently drop fields used by templates; verify consumption across `Pages/` and `Components/` before deleting.
+- Prefer extending an existing query over creating a near-duplicate file.
+- Keep directives and aliases lowercase snake_case on the client side (Wake exposes PascalCase response fields as snake_case in Scriban).
+
+## Checklist for new queries
+
+- [ ] Variables match SDK input types and Wake conventions.
+- [ ] Product fields align with the shared product shape.
+- [ ] Pagination model matches UI behavior.
+- [ ] File path and operation name match file purpose (page vs snippet).
+- [ ] No unused selections.

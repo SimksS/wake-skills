@@ -21,7 +21,7 @@ Queries/Search/search.graphql -> "Search/search.graphql"
 
 The GraphQL response becomes `data` in the template.
 
-Se a query retorna:
+If the query returns:
 
 ```json
 {

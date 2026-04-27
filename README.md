@@ -17,7 +17,7 @@ npx wake-skills install
 Isso copia:
 
 - `wake-*/` -> `.agents/skills/wake-*/`
-- `rules/*.md` -> `.agents/rules/*.md`
+- `rules/*.mdc` -> `.agents/rules/*.mdc`
 
 ### Instalar para Cursor (preset)
 
@@ -46,8 +46,8 @@ npx wake-skills install --dry-run
 - `wake-blocks`: CMS-editable blocks using `Blocks/<type>.html` and `Blocks/<type>.schema.json`.
 - `wake-store-builtins`: use built-in variables injected into the `store` object inside Scriban templates.
 - `wake-performance`: Page Speed optimization, images, responsive banners, scripts, and “hotsite-style” search.
-- `rules/wake-graphql-mcp.md`: cross-cutting rule to validate real Wake Commerce data via MCP before generating code.
-- `rules/wake-scriban.md`: cross-cutting rule to write HTML templates with Scriban and access injected objects in `underscore_case`.
+- `rules/wake-graphql-mcp.mdc`: cross-cutting rule to validate real Wake Commerce data via MCP before generating code.
+- `rules/wake-scriban.mdc`: cross-cutting rule to write HTML templates with Scriban and access injected objects in `underscore_case`.
 
 ## Expected Structure
 
@@ -55,8 +55,8 @@ npx wake-skills install --dry-run
 wake-skills/
   README.md
   rules/
-    wake-graphql-mcp.md
-    wake-scriban.md
+    wake-graphql-mcp.mdc
+    wake-scriban.mdc
   wake-queries/
     SKILL.md
     reference.md
@@ -107,7 +107,7 @@ The MCP is the source of truth for:
 1. Detect which skill applies based on the user request and the files being touched.
 2. Read the relevant `SKILL.md` before editing.
 3. Read `reference.md` only when additional detail is needed.
-4. Apply `wake-graphql-mcp.md` when Wake Commerce data is involved.
+4. Apply `rules/wake-graphql-mcp.mdc` when Wake Commerce data is involved.
 5. Make small, coherent changes aligned with Wake’s structure.
 6. Validate against the skill checklist before finishing.
 

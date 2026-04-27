@@ -1,0 +1,106 @@
+---
+description: Runtime-safe JavaScript for Wake storefront, Storefront SDK calls, snippet rendering, and data layer.
+globs: "Assets/JS/**/*.js"
+alwaysApply: false
+---
+
+# Wake JS Runtime Safety
+
+Client JS in `Assets/JS/` runs after [Components/utils/sdk_client.html](Components/utils/sdk_client.html) creates the global `client` with `StorefrontClient.createClient(...)`. All interactions with Wake must go through that SDK.
+
+## Storefront SDK surface
+
+Canonical namespaces used across the project (see [Assets/JS/pagination.js](Assets/JS/pagination.js), [Assets/JS/wicomm_checkout.js](Assets/JS/wicomm_checkout.js), [Assets/JS/event_manager.js](Assets/JS/event_manager.js)):
+
+- `client.query(query, variables)` — generic GraphQL call.
+- `client.snippet.render(snippetName, queryFile, variables)` — SSR partial render.
+- `client.cookie.get(name)` / `client.cookie.set(...)` — cookie access (async).
+- `client.checkout.*` — add, remove, addCoupon, removeCoupon, updateProduct, selectGiftVariant, partnerAssociate, addKit, removeKit, removeProductCustomization.
+- `client.customer.*` — get, accessTokenDetails, login, logout, register.
+- `client.wishlist.*`, `client.login.*` — account and wishlist flows.
+
+Do not invent namespaces or methods. If unsure, mirror existing usage in `Assets/JS/`.
+
+## Snippet render contract
+
+`client.snippet.render` expects three arguments and returns HTML to inject.
+
+```js
+const obj = {
+    partnerAccessToken,
+    filters,
+    minimumPrice,
+    maximumPrice,
+    resultSize: pageSize,
+    after: endCursor,
+    url,
+};
+
+const html = await client.snippet.render(
+    "cursor_pagination.html",               // must exist in Snippets/
+    "hotsite_with_cursor.graphql",          // must exist in Queries/ or Queries/SnippetQueries/
+    obj                                     // keys must match GraphQL variables
+);
+
+document.getElementById("infinity-scroll-content-div").innerHTML += html;
+```
+
+Rules:
+
+- Snippet file name must match an existing `Snippets/*.html`.
+- Query path is relative to `Queries/`; snippet queries usually live under `Queries/SnippetQueries/`.
+- Variable keys in the JS object must match the GraphQL query variables exactly (same names, same types).
+- Always verify the injection target exists before mutating `innerHTML`.
+
+## Async flows
+
+- `await client.cookie.get(...)` is async — never use the returned Promise as a value.
+- Guard each external call with defensive checks and fail closed on the UI side (do not leave stuck loading states).
+- Keep partnerAccessToken propagation consistent: read once per flow and pass it through.
+
+## Data layer correctness
+
+Data layer builders feed analytics events consumed by [Components/utils/data_layer/](Components/utils/data_layer) helpers. Iterate entire collections; never return early inside a loop that is meant to collect items.
+
+```js
+// BAD: returns on first item
+function convertItems(items) {
+    for (const item of items) {
+        return transform(item);
+    }
+}
+
+// GOOD: collects all items
+function convertItems(items) {
+    const result = [];
+    for (const item of items) {
+        result.push(transform(item));
+    }
+    return result;
+}
+```
+
+- Event names and payload keys must match what the page templates expose via `data_layer_*` components.
+- Respect page-type signals (`<input hidden id="data-layer-page-type" ...>`) when branching logic.
+
+## Production hygiene
+
+- No `console.log`, `console.debug`, or `debugger` in committed files.
+- No dead experiment flags; if a feature is toggled, route it through a documented setting.
+- No TODO comments without owner or ticket reference.
+
+## Change safety on critical flows
+
+Checkout, cart, login, and account files carry fragile behavior tied to server-side expectations. When editing:
+
+- Preserve existing `client.checkout.*` call order.
+- Do not change cookie names (`sf_partner_access_token`, `sf_customer_access_token`, `carrinho-id`) or consumer expectations.
+- Keep event manager hooks wired (`event_manager.js` orchestrates analytics).
+
+## Checklist
+
+- [ ] Uses `client.*` SDK surface, no invented methods.
+- [ ] Snippet + query pair exists and variables match.
+- [ ] DOM targets checked before mutation.
+- [ ] No `console.log` or leftover debug.
+- [ ] No early-return truncation in data-layer loops.
