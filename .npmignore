@@ -1,0 +1,8 @@
+.cursor/
+mcps/
+terminals/
+agent-transcripts/
+.git/
+.github/
+*.log
+

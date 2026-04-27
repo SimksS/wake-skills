@@ -1,0 +1,22 @@
+{
+  "name": "@simks/wake-skills",
+  "version": "0.1.0",
+  "description": "Agent skills and rules for Wake Storefront SSR projects.",
+  "license": "MIT",
+  "private": false,
+  "files": [
+    "README.md",
+    "rules/",
+    "wake-*/"
+  ],
+  "keywords": [
+    "wake",
+    "wake-commerce",
+    "storefront",
+    "cursor",
+    "agent",
+    "skills",
+    "rules"
+  ]
+}
+
