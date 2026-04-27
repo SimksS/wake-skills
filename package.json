@@ -1,6 +1,6 @@
 {
   "name": "wake-skills",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Agent skills and rules for Wake Storefront SSR projects.",
   "license": "MIT",
   "bin": {
@@ -24,8 +24,7 @@
     "wake-store-builtins/",
     "wake-query-and-snippet-designer/",
     "wake-scriban-graphql-implementer/",
-     "wake-template-auditor"
-   
+    "wake-template-auditor"
   ],
   "keywords": [
     "wake",
@@ -40,4 +39,3 @@
     "pack:check": "npm pack --silent"
   }
 }
-
